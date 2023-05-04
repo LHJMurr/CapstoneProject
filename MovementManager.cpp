@@ -2,7 +2,7 @@
 #include "RobotState.h"
 #include <Arduino.h>
 
-MovementManager::MovementManager(int lP, int mP, int rP, int lC, int rC, int eA, int eB, int i1, int i2, int i3, int i4) {
+MovementManager::MovementManager(int lP, int mP, int rP, int lC, int rC, int eA, int eB, int i1, int i2, int i3, int i4, int e1, int p1, int e2, int p2) {
   // Establish Sensor Pin Connections
   leftPin = lP;
   middlePin = mP;
@@ -16,6 +16,11 @@ MovementManager::MovementManager(int lP, int mP, int rP, int lC, int rC, int eA,
   input2 = i2;
   input3 = i3;
   input4 = i4;
+  // Establish Ultrasonic Sensor Connections
+  echo1 = e1;
+  ping1 = p1;
+  echo2 = e2;
+  ping2 = p2;
 }
 
 void MovementManager::initialize() const {
@@ -33,6 +38,10 @@ void MovementManager::initialize() const {
   pinMode(input2, OUTPUT);
   pinMode(input3, OUTPUT);
   pinMode(input4, OUTPUT);
+  pinMode(echo1, INPUT);
+  pinMode(ping1, OUTPUT);
+  pinMode(echo2, INPUT);
+  pinMode(ping2, OUTPUT);
 
   Serial.println("MOVEMENT INITIALIZATION COMPLETE");
 }
@@ -69,7 +78,7 @@ bool MovementManager::turnRobot(int dir, int turnSpeed) const {
   int blackThreshold = 400;
   bool offLine = false;
   unsigned int startTime = millis();
-  while (millis() - startTime < 5000) { // 5 seconds maximum turn time
+  while (millis() - startTime < 1) { // Control max turn time
     int irReading = analogRead(middlePin);
     // Check if we have left the original line
     if (!offLine && (irReading < blackThreshold)) {
@@ -120,6 +129,31 @@ void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, 
     digitalWrite(input3, HIGH);
     digitalWrite(input4, LOW);  
   }
+}
+
+int MovementManager::pingDistance(bool grabberSensor) {
+  /* Returns the distance in cm registered by the ultrasonic sensor in question. grabberSensor --> ping the sensor on the grabber. */
+  int pingPin;
+  int echoPin;
+  if (grabberSensor) {
+    pingPin = ping1;
+    echoPin = echo1;
+  }
+  else {
+    pingPin = ping2;
+    echoPin = echo2;  
+  }
+  
+  // Ping
+  digitalWrite(pingPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(pingPin, LOW);
+
+  // Echo
+  int duration = pulseIn(echoPin, HIGH);
+  return duration / 29 / 2; 
 }
 
 bool MovementManager::atCorner() const {

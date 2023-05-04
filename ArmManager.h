@@ -10,6 +10,8 @@ class ArmManager {
     void raiseArm();
     void lowerArm();
     void homePosition();
+    void grabJuicebox();
+    void releaseJuicebox();
   private:
     // Private Functions
     bool moveArm(int targetTheta, int targetAlpha, int restTime);

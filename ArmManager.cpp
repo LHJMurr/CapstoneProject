@@ -45,8 +45,17 @@ void ArmManager::homePosition() {
   jointOne.write(0);
   jointTwo.write(0);
   jointThree.write(0);
-  jointGrabber.write(0);
   return;  
+}
+
+void ArmManager::grabJuicebox() {
+  Serial.println("GRABBING JUICEBOX");
+  return;
+}
+
+void ArmManager::releaseJuicebox() {
+  Serial.println("RELEASEING JUICEBOX");
+  return;
 }
 
 bool ArmManager::moveArm(int targetTheta, int targetPhi, int restTime) {
