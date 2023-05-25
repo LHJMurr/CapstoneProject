@@ -7,7 +7,7 @@
 
 class corner {
   public:
-    static void main(int commands[], int numCommands, int turnSpeed, MovementManager* m, RobotState* rs);
+    static void main(int commands[], int turnTimings[], int numCommands, int outSpeed, int inSpeed, MovementManager* m, RobotState* rs);
   private:
     static int commandIdx;
 };
@@ -19,15 +19,15 @@ class forwards {
 
 class pickup {
   public:
-    static void main(int adjustSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
+    static void main(int adjustSpeed, int outSpeed, int inSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
   private:
     static void alignJuicebox(int adjustSpeed, MovementManager* m);
-    static void alignAngle(bool checkRight, bool* cornerFound, int adjustSpeed, MovementManager* m);
+    static void alignAngle(bool checkRight, bool* cornerFound, int adjustSpeed, MovementManager* m, int distanceEpsilon);
 };
 
 class dropoff {
   public:
-    static void main(int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
+    static void main(int outSpeed, int inSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
 };
 
 class crawl {
@@ -37,7 +37,7 @@ class crawl {
 
 class done {
   public:
-    static void main();
+    static void main(InterfaceManager* ui, RobotState* rs);
 };
 
 #endif

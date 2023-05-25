@@ -1,6 +1,8 @@
 #ifndef ROBOT_STATE_H
 #define ROBOT_STATE_H
 
+#include "UserInterface.h"
+
 // States
 class RobotState {
   public:
@@ -17,7 +19,7 @@ class RobotState {
     static const int DONE = 5;
     
   private:
-    int currentState; 
+    int currentState;
 };
 
 #endif

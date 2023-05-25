@@ -2,12 +2,13 @@
 #include <Servo.h>
 #include <Arduino.h>
 
-ArmManager::ArmManager(int s1, int s2, int s3, int grabber) {
+ArmManager::ArmManager(int s1, int s2, int s3, int grabber, int ps) {
   // Establish Servo Pin Numbers
   s1Pin = s1;
   s2Pin = s2;
   s3Pin = s3;
-  grabberPin = grabber;  
+  grabberPin = grabber;
+  pressureSensor = ps;  
 }
 
 void ArmManager::initialize() {
@@ -17,6 +18,7 @@ void ArmManager::initialize() {
   pinMode(s2Pin, OUTPUT);
   pinMode(s3Pin, OUTPUT);
   pinMode(grabberPin, OUTPUT);
+  pinMode(pressureSensor, INPUT);
   
   // Attach pins to servos
   jointOne.attach(s1Pin);
@@ -25,40 +27,47 @@ void ArmManager::initialize() {
   jointGrabber.attach(grabberPin);
   
   // Write to initial positions
-  this->homePosition();
+  homePosition();
 
   Serial.println("ARM INITIALIZATION COMPLETE");
 }
 
 void ArmManager::raiseArm() {
-  Serial.println("RAISING ARM");
+  int startTime = millis();
+  while(!moveArm(40, 60, 5) && (millis() - startTime < 10000)) {}
   return;  
 }
 
 void ArmManager::lowerArm() {
-  Serial.println("LOWERING ARM");
-  return;  
+  int startTime = millis();
+  while(!moveArm(120, 60, 5) && (millis() - startTime < 10000)) {}
+  return;
 }
 
 void ArmManager::homePosition() {
-  Serial.println("RETURNING ARM TO HOME");
-  jointOne.write(0);
-  jointTwo.write(0);
-  jointThree.write(0);
+  int startTime = millis();
+  Serial.println("TEST");
+  while(!moveArm(jointOneInitialAngle, jointTwoInitialAngle, 5) && (millis() - startTime < 10000)) {Serial.println("MOVING HOME");}
   return;  
 }
 
 void ArmManager::grabJuicebox() {
-  Serial.println("GRABBING JUICEBOX");
+
+  int targetPressure = 10; 
+  
+  int startTime = millis();
+  while(analogRead(pressureSensor) < targetPressure && (millis() - startTime < 10000)) {
+    moveServo(180, 2, jointGrabber);  
+  }
   return;
 }
 
 void ArmManager::releaseJuicebox() {
-  Serial.println("RELEASEING JUICEBOX");
+  jointGrabber.write(0); // Release the servo. We can do this at full speed.
   return;
 }
 
-bool ArmManager::moveArm(int targetTheta, int targetPhi, int restTime) {
+bool ArmManager::moveArm(int targetTheta, int targetAlpha, int restTime) {
   /* Moves the three servos of the arm in tandem with eachother. s3 will adjust to keep the grabber parallel to the ground.
   targetTheta is the angle of joint 1, targetPhi is the angle of joint 2, s1 is the servo object for joint 1, "" for 2 and 3.
 
@@ -66,31 +75,43 @@ bool ArmManager::moveArm(int targetTheta, int targetPhi, int restTime) {
   */
 
   // Move the first servo
-  int j1_write = 2*(targetTheta - jointOneInitialAngle);
+  int j1_write = 2*(targetTheta - jointOneInitialAngle); // Angle that j1 should achieve
   if (j1_write > 180 || j1_write < 0) {
     Serial.println("JOINT ONE GIVEN IMPROPER RANGE");
     return false; //   
   }
-  this->moveServo(j1_write, restTime, this->jointOne);
+  moveServo(translateAngle(j1_write, true), restTime, jointOne);
 
   // Move the second servo
-  int j2_write = (jointTwoInitialAngle - targetPhi);
+  int j2_write = (jointTwoInitialAngle - targetAlpha); // Angle that j2 should achieve
   if (j2_write > 180 || j1_write < 0) {
     Serial.println("JOINT TWO GIVEN IMPROPER RANGE");
     return false;  
   }
-  this->moveServo(j2_write, restTime, this->jointTwo);
+  moveServo(translateAngle(j2_write, true), restTime, jointTwo);
 
   // Balance the third servo
-  int theta = jointOneInitialAngle + (this->jointOne.read() / 2);
-  int alpha = jointTwoInitialAngle - this->jointTwo.read();
-  if(cos((theta + alpha) * M_PI/180) <= 0) {
-    this->jointThree.write(jointThreeInitialAngle - (180 - (theta + alpha))); 
+  int theta = jointOneInitialAngle + (translateAngle(jointOne.read(), false) / 2);
+  int alpha = jointTwoInitialAngle - translateAngle(jointTwo.read(), false);
+  int phi;
+  if(cos((theta + alpha) * M_PI/180) <= 0) { // Point FORWARDS
+    phi = (180 - (theta + alpha)); 
   }
-  else {
-    this->jointThree.write(jointThreeInitialAngle + (theta + alpha));
+  else { // Point BACKWARDS
+    phi = (0 - (theta + alpha));
   }
-  if (this->jointOne.read() == j1_write && this->jointTwo.read() == j2_write) {
+  // Check if safe
+  if (phi > 90) {
+    phi = 90;  
+  }
+  else if (phi < jointThreeInitialAngle) {
+    phi = jointThreeInitialAngle;  
+  }
+  int jointThreeToWrite = phi - jointThreeInitialAngle;
+  jointThree.write(jointThreeToWrite);
+
+  // Check if done
+  if (abs(translateAngle(jointOne.read(), false) - j1_write) <= 1 && abs(translateAngle(jointTwo.read(), false) - j2_write) <= 1) { // +- 1 degree
     return true; // Final turn of the servos  
   }
   return false; // Not the final turn, keep moving
@@ -125,4 +146,16 @@ void ArmManager::moveServo(int targetAngle, int restTime, Servo s) {
     s.write(currentAngle);
   }
   return; // Not the right timing to move  
+}
+
+int ArmManager::translateAngle(int translate, bool toWrite) {
+  /* Transllates the DESIRED angle to the angle TO WRITE to the large servos, which have a larger range. Can also translate back */
+  if (toWrite) {
+    float turnPercent = translate / 180.0f; 
+    return round(130 * turnPercent); 
+  }
+  else {
+    float turnPercent = translate / 130.0f;
+    return round(180 * turnPercent);
+  }
 }
