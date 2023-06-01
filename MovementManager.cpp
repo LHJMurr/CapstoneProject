@@ -3,7 +3,7 @@
 #include "RobotState.h"
 #include <Arduino.h>
 
-MovementManager::MovementManager(int lP, int mP, int rP, int lC, int rC, int eA, int eB, int i1, int i2, int i3, int i4, int e1, int p1, int e2, int p2) {
+MovementManager::MovementManager(int lP, int mP, int rP, int lC, int rC, int eA, int eB, int i1, int i2, int i3, int i4, int e1, int p1) {
   // Establish Sensor Pin Connections
   leftPin = lP;
   middlePin = mP;
@@ -20,8 +20,6 @@ MovementManager::MovementManager(int lP, int mP, int rP, int lC, int rC, int eA,
   // Establish Ultrasonic Sensor Connections
   echo1 = e1;
   ping1 = p1;
-  echo2 = e2;
-  ping2 = p2;
 }
 
 void MovementManager::initialize() const {
@@ -41,8 +39,6 @@ void MovementManager::initialize() const {
   pinMode(input4, OUTPUT);
   pinMode(echo1, INPUT);
   pinMode(ping1, OUTPUT);
-  pinMode(echo2, INPUT);
-  pinMode(ping2, OUTPUT);
 
   Serial.println("MOVEMENT INITIALIZATION COMPLETE");
 }
@@ -51,14 +47,15 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
   /* Behavior for the state "FORWARDS". Entails line following and correction at set speeds (no motor control yet) 
     turnThreshold is the difference in sensor readings we need to determine we are at a line. */
 
-  /*
+
+ /*
   Serial.print("LEFT SENSOR READS: ");
   Serial.print(analogRead(leftPin));
   Serial.print("     MID SENSOR READS: ");
-  Serial.print(analogRead(rightPin));
+  Serial.print(analogRead(middlePin));
   Serial.print("     RIGHT SENSOR READS: ");
   Serial.println(analogRead(rightPin));
-  */
+*/
 
   int turnThreshold = 150;
   static bool leftTurn = false; // Store last speed command
@@ -126,11 +123,9 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnAdju
 
   For some reason, the slip steering causes the robot to rotate about the front half of the car. So, we need to do a small static reverse to get that point over the corner before rotating.
 
-  turnAdjust of 250 works for 90 degree turns. Larger for smaller angles (need to reverse more). 750 for the low angle first turn. ~550 for the next turn.
+  turnAdjust of 250 works for 90 degree turns (290 @ low charge). Larger for smaller angles (need to reverse more). 750 for the low angle first turn. ~550 for the next turn.
   
   */
-
-  int blackThreshold = 300;
 
   this->motorControl(60, 60, false, false);
   delay(turnAdjust);
@@ -174,8 +169,9 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnAdju
 void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, bool dirRight) {
   /* Sends signals to the L298N to control the motor speed and direction. leftSpeed and rightSpeed are percentages of maximum speed. IF both are zero, the motors stop.
 
-  The minimum PWM to get motion is AROUND 60% of 218
-  
+  The minimum PWM to overcome static friction is around 70% of 218.
+  The minimum PWM to overcome dynamic friction is around 35%, albeit this is probably to low (especially with the weight of the payload).
+   
   */
   
   // Safety Check
@@ -213,40 +209,46 @@ void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, 
   }
   
   // Speed Controls
-  analogWrite(enableA, convertPWM(leftSpeed));
-  analogWrite(enableB, convertPWM(rightSpeed));
+  if (leftSpeed > 70 && rightSpeed > 70) {
+    analogWrite(enableA, convertPWM(leftSpeed));
+    analogWrite(enableB, convertPWM(rightSpeed));  
+  }
+  // Jumpstart to overcome static friction
+  else {
+    static int sTime = millis();
+    static int eTime = 0;
+    if (millis() - eTime > 6000) {
+      Serial.println("TEST");
+      sTime = millis();
+      while (millis() - sTime < 500) {
+        analogWrite(enableA, convertPWM(70));
+        analogWrite(enableB, convertPWM(70)); 
+      }
+      eTime = millis();
+    }
+    analogWrite(enableA, convertPWM(leftSpeed));
+    analogWrite(enableB, convertPWM(rightSpeed));
+  }
 }
 
-int MovementManager::pingDistance(bool grabberSensor) {
+int MovementManager::pingDistance() {
   /* Returns the distance in cm registered by the ultrasonic sensor in question. grabberSensor --> ping the sensor on the grabber. */
-  int pingPin;
-  int echoPin;
-  if (grabberSensor) {
-    pingPin = ping1;
-    echoPin = echo1;
-  }
-  else {
-    pingPin = ping2;
-    echoPin = echo2;  
-  }
   
   // Ping
-  digitalWrite(pingPin, LOW);
+  digitalWrite(ping1, LOW);
   delayMicroseconds(2);
-  digitalWrite(pingPin, HIGH);
+  digitalWrite(ping1, HIGH);
   delayMicroseconds(10);
-  digitalWrite(pingPin, LOW);
+  digitalWrite(ping1, LOW);
 
   // Echo
-  int duration = pulseIn(echoPin, HIGH);
+  int duration = pulseIn(echo1, HIGH);
   return duration / 29 / 2; 
 }
 
 bool MovementManager::atCorner() const {
   /* Black Threshold = Number at which our sensors read "Black" instead of "White" */
-  static bool lastRead = false; 
-  // int blackThreshold = 300;
-  // || ((analogRead(middlePin) < blackThreshold) && (analogRead(leftPin) < blackThreshold) && (analogRead(rightPin) < blackThreshold))
+  static bool lastRead = false;
   if (digitalRead(leftCorner) || digitalRead(rightCorner)) {
     if (!lastRead) { // If just crossed onto a corner
       lastRead = true;
@@ -262,4 +264,12 @@ bool MovementManager::atCorner() const {
 int MovementManager::convertPWM(int inputPercent) {
   /* 100% --> 255 * (5/9) = 141.666 ~ 141, 0% --> 0 */
   return floor(inputPercent/100.0 * 218);
+}
+
+bool MovementManager::endOfLine() {
+  // If all sensors read white, return true. 
+  if ((analogRead(leftPin) < blackThreshold) && (analogRead(middlePin) < blackThreshold) && (analogRead(rightPin) < blackThreshold)) {
+    return true;  
+  }
+  return false; 
 }

@@ -10,10 +10,10 @@
 void StateMachine();
 
 // Global Variables
-int commandInstructions[8] = {0, 1, 0, 1, -1, 1, 0, 1};
-int turnAdjustments[1] = {250}; // Array for the static reverse times @ each turn
-MovementManager movement(A0, A1, A2, 28, 29 , 9, 4, 8, 7, 6, 5, 22, 23, 24, 25);
-ArmManager arm(13, 12, 11, 10, A5);
+int commandInstructions[22] = {0, 1, 0, 1, 0, 1, -1, 1, -1, 1, -1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1};
+int turnAdjustments[4] = {770, 570, 290, 290}; // Array for the static reverse times @ each turn
+MovementManager movement(A5, A1, A7, 23, 13 , 4, 9, 5, 6, 7, 8, 53, 39);
+ArmManager arm(11, 2, 3, 12, A5);
 InterfaceManager ui(52, 51, 1000);
 RobotState currentState;
 
@@ -29,7 +29,20 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  StateMachine();
+  /* General Notes:
+    It may be that because lower charge -> lower voltage -> less force, the turnAdjustments may be a function of charge. Make sure to test on FULL charge before the final presentation.
+  */
+
+  Serial.println(movement.pingDistance());
+
+  /*
+  pickup::main(61, 0, 80, &arm, &movement, &currentState); // Third value is the speed to turn around
+  delay(20000);
+  arm.releaseJuicebox();
+  delay(20000);
+  */
+
+  // StateMachine();
   
 }
 
@@ -45,28 +58,28 @@ void StateMachine() {
     // CornerState
     case RobotState::CORNER:
       {
-        corner::main(commandInstructions, turnAdjustments, 8, 70, 70, &movement, &currentState);
+        corner::main(commandInstructions, turnAdjustments, 22, 70, 70, &movement, &currentState);
         break;
       }
     
     // Forwards State
     case (RobotState::FORWARDS):
       {
-        forwards::main(70, 0, &movement, &currentState);
+        forwards::main(90, 0, &movement, &currentState);
         break;
       }
 
     // Pickup State
     case RobotState::PICKUP:
       {
-        pickup::main(10, 50, 55, &arm, &movement, &currentState);
+        pickup::main(40, 70, &arm, &movement, &currentState);
         break;
       }
 
      // Dropoff State
     case RobotState::DROPOFF:
       {
-        dropoff::main(50, 55, &arm, &movement, &currentState);
+        dropoff::main(40, 70, &arm, &movement, &currentState);
         break;
       } 
 

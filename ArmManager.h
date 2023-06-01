@@ -9,20 +9,22 @@ class ArmManager {
     void initialize();
     void raiseArm();
     void lowerArm();
-    void homePosition();
+    void homePosition(bool offset);
     void grabJuicebox();
     void releaseJuicebox();
-    bool moveArm(int targetTheta, int targetPhi, int restTime);
-  private:
-    // Private Functions
-    void moveServo(int targetAngle, int restTime, Servo s);
-    static int translateAngle(int desiredAngle, bool toWrite);
-
-    // Private Members
+    bool moveArm(int targetTheta, int targetPhi, int restTime, int offset);
+    bool moveServo(int targetAngle, int restTime, Servo s);
+    void releaseOffset(int restTime, int offset);
+    // Move back to private when done testing
     Servo jointOne;
     Servo jointTwo;
     Servo jointThree;
-    Servo jointGrabber;
+    Servo jointGrabber; // 0 is open, 180 is closed. May need to scale up to 7V if too weak to grab.
+  private:
+    // Private Functions
+    static int translateAngle(int desiredAngle, bool toWrite);
+
+    // Private Members
     int jointOneInitialAngle = 22; // The initial angles are VERY important as they calibrate the arm balancing logic. Each is measured with respect to the last link
     int jointTwoInitialAngle = 158; // by right-hand rule convention
     int jointThreeInitialAngle = -90; 

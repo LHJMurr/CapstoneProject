@@ -40,124 +40,62 @@ void forwards::main(int fullSpeed, int turnSpeed, MovementManager* m, RobotState
   return;
 }
 
-void pickup::main(int adjustSpeed, int outSpeed, int inSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
-  /*
+void pickup::main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
   // Raise the arm
   a->raiseArm();
-  // Align the juicebox
-  pickup::alignJuicebox(adjustSpeed, m);
-  // Grab the juicebox
-  a->grabJuicebox();
-  // Lower the arm
-  a->homePosition();
-  // Turn around
-  m->turnRobot(1, turnSpeed); // While loop
-  */
-  Serial.println("PICKING UP");
-  m->turnRobot(1, outSpeed, inSpeed, 0); // While loop
-  rs->changeState(RobotState::FORWARDS);
-}
-
-void pickup::alignJuicebox(int adjustSpeed, MovementManager* m) {
-  /* This function will control the motors to align the grabber with the juicebox using readings from the ultrasonic sensor
-     It works by aiming left and right until a minimum distance value is found, noting the presense of the juicebox by large jumps in distance.
-     Once aligned, we adjust the car forwards or backwards until the right distance is met. Then we return.
-
-     For now, the function occurs "async" that is, it is called then operates completely. IF we need to do other stuff in the meantime, we can use millis() to desync.
-  */ 
-
-  int distanceEpsilon = 10;
-  int targetDistance = 10;
   
-  unsigned int startTime = millis();
-  bool angleAligned = false;
-  // Align Angle
-  while (!angleAligned && millis() - startTime < 10000) { // Break Case is if we look for more than 10 seconds
-    static bool leftEdge = false;
-    static bool rightEdge = false;
-    static int waitTime = 1000;
-    // Try to look left
-    unsigned int turnStart = millis();
-    while(!leftEdge && (millis() - turnStart < waitTime)) {
-      pickup::alignAngle(false, &leftEdge, adjustSpeed, m, distanceEpsilon);
-      if (leftEdge && rightEdge) {
-        int turnTime = (millis() - turnStart) / 2;
-        int finalAdjustment = millis();
-        while (millis() - finalAdjustment < turnTime) {
-          m->motorControl(adjustSpeed, adjustSpeed, true, false);  
-        }
-        angleAligned = true;
-      }  
-    }
-    waitTime = waitTime + 1000;
-    turnStart = millis();
-    // Try to look right
-    while(!rightEdge && (millis() - turnStart < waitTime)) {
-      pickup::alignAngle(true, &rightEdge, adjustSpeed, m, distanceEpsilon);
-      if (leftEdge && rightEdge) {
-        int turnTime = (millis() - turnStart) / 2;
-        int finalAdjustment = millis();
-        while (millis() - finalAdjustment < turnTime) {
-          m->motorControl(adjustSpeed, adjustSpeed, false, true);  
-        }
-        angleAligned = true;
-      }  
-    }
-    waitTime = waitTime + 1000;
-  }
-
-  // Attempt to move linearly
-  startTime = millis(); 
-  bool linearlyAligned = false;
-  while (!linearlyAligned & (millis() - startTime) < 10000) {
-    if (m->pingDistance(true) > targetDistance) { 
-      m->motorControl(adjustSpeed, adjustSpeed, true, true);
-    }  
-    else if (m->pingDistance(true) < targetDistance) {
-      m->motorControl(adjustSpeed, adjustSpeed, false, false);  
+  // Move forwards until distance is reached
+  int pingCount = 0;
+  while(pingCount < 5) {
+    Serial.print(m->pingDistance());
+    Serial.print("    ");
+    Serial.println(pingCount);
+    if (m->pingDistance() < 10) {
+      pingCount++;  
     }
     else {
-      linearlyAligned = true; 
+      pingCount = 0;  
     }
+    m->followLineForwards(fullSpeed, 0, rs); 
   }
-  return;
-}
-
-void pickup::alignAngle(bool checkRight, bool* cornerFound, int adjustSpeed, MovementManager* m, int distanceEpsilon) {
-  static int lastDistance = m->pingDistance(true);
-  int newDistance = m->pingDistance(true);
-  if (checkRight) {
-    m->motorControl(adjustSpeed, adjustSpeed, true, false);
-    if (newDistance - lastDistance > distanceEpsilon) { // Distance Epsilon = 10cm. Will need to tune. We're specifically looking for the left EDGE of the box.
-      lastDistance = newDistance;
-      *cornerFound = true;
-    }
-  }
-  else {
-    m->motorControl(adjustSpeed, adjustSpeed, false, true);
-    if (newDistance - lastDistance > distanceEpsilon) { // Distance Epsilon = 10cm. Will need to tune. We're specifically looking for the left EDGE of the box.
-      lastDistance = newDistance;
-      *cornerFound = true;
-    }
-  }
-  lastDistance = newDistance;
-  return;
-}
-
-void dropoff::main(int outSpeed, int inSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
-  /*
+  m->motorControl(0, 0, true, true); // Stop motors
+  
+  // Grab the juicebox
+  a->grabJuicebox();
+  
+  //Reverse to clear the wall 
+  delay(500);
+  m->motorControl(fullSpeed, fullSpeed, false, false);
+  delay(1000);
+  m->motorControl(0, 0, true, true);
+  
   // Lower the arm
-  a->lowerArm();
-  // Release the juicebox
+  a->homePosition(true);
+  a->releaseOffset(40, 15); // Offset = 15
+  
+  // Set state to corner (turn and move forwards)
+  rs->changeState(RobotState::CORNER);
+}
+
+void dropoff::main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
+  // Follow the line until the end is reached
+  while(!m->endOfLine()) {
+      m->followLineForwards(fullSpeed, 0, rs);
+  }
+  m->motorControl(0, 0, true, true);
+
+  // Drop the juicebox
   a->releaseJuicebox();
-  // Raise the arm
-  a->homePosition();
-  // Turn Around
-  m->turnRobot(1, turnSpeed);
-  */
-  Serial.println("DROPPING OFF"); // For testing
-  m->turnRobot(1, outSpeed, inSpeed, 0); // While loop
-  rs->changeState(RobotState::FORWARDS);
+
+  // Reverse to clear the juicebox
+  delay(500);
+  m->motorControl(fullSpeed, fullSpeed, false, false);
+  delay(1000);
+  m->motorControl(0, 0, true, true);
+  
+  // Set state to corner (turn and move forwards)
+  rs->changeState(RobotState::CORNER);
+  
 }
 
 void crawl::main(int crawlSpeed, int turnSpeed, MovementManager* m, RobotState* rs) {

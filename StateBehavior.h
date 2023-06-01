@@ -19,15 +19,12 @@ class forwards {
 
 class pickup {
   public:
-    static void main(int adjustSpeed, int outSpeed, int inSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
-  private:
-    static void alignJuicebox(int adjustSpeed, MovementManager* m);
-    static void alignAngle(bool checkRight, bool* cornerFound, int adjustSpeed, MovementManager* m, int distanceEpsilon);
+    static void main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
 };
 
 class dropoff {
   public:
-    static void main(int outSpeed, int inSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
+    static void main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
 };
 
 class crawl {
