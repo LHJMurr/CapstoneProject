@@ -19,12 +19,12 @@ class forwards {
 
 class pickup {
   public:
-    static void main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
+    static void main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
 };
 
 class dropoff {
   public:
-    static void main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
+    static void main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* rs);
 };
 
 class crawl {

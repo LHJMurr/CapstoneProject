@@ -40,7 +40,7 @@ void forwards::main(int fullSpeed, int turnSpeed, MovementManager* m, RobotState
   return;
 }
 
-void pickup::main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
+void pickup::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
   // Raise the arm
   a->raiseArm();
   
@@ -77,39 +77,35 @@ void pickup::main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* 
   rs->changeState(RobotState::CORNER);
 }
 
-void dropoff::main(int fullSpeed, int turnSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
+void dropoff::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
   // Follow the line until the end is reached
   while(!m->endOfLine()) {
+      Serial.println("MovingForwards");
       m->followLineForwards(fullSpeed, 0, rs);
   }
   m->motorControl(0, 0, true, true);
 
+  // Lower Arm
+  a->lowerArm(); // Right now it just returns, but if we need more space to turn we can adjust it. 
+  
   // Drop the juicebox
+  Serial.println("Dropping off juicebox");
   a->releaseJuicebox();
 
-  // Reverse to clear the juicebox
-  delay(500);
-  m->motorControl(fullSpeed, fullSpeed, false, false);
-  delay(1000);
-  m->motorControl(0, 0, true, true);
   
   // Set state to corner (turn and move forwards)
+  Serial.println("AT 'CORNER'");
   rs->changeState(RobotState::CORNER);
+  return;
   
 }
 
-void crawl::main(int crawlSpeed, int turnSpeed, MovementManager* m, RobotState* rs) {
-
-  /*
-  int safetyDistance = 10;
+void crawl::main(int fullSpeed, int turnSpeed, MovementManager* m, RobotState* rs) {
+  // Wait for obstacle to be moved.
+  // TO DO
   
-  m->followLineForwards(crawlSpeed, turnSpeed, rs);
-  if (m->pingDistance(false) < safetyDistance) {
-    rs->changeState(RobotState::FORWARDS); 
-  }  
-  */
-  Serial.println("CRAWLING"); // For testing
-  rs->changeState(RobotState::FORWARDS);
+  // Full speed through the rough terrain
+  m->followLineForwards(fullSpeed, turnSpeed, rs);
   return;
 }
 

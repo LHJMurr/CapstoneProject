@@ -69,19 +69,17 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
 
   // Check sensors
   int leftRead = analogRead(leftPin);
-  int rightRead = analogRead(rightPin); 
+  int rightRead = analogRead(rightPin);
+  Serial.println(leftRead);
+  Serial.println(rightRead); 
 
   // Turn Right
   if (rightRead - leftRead > turnThreshold) {
-    leftTurn = false;
-    rightTurn = true;
-    this->motorControl(fullSpeed, turnSpeed, true, true);
+    this->motorControl(turnSpeed, fullSpeed, true, true);
   }
   // Turn Left
   else if (leftRead - rightRead > turnThreshold) {
-    leftTurn = true; 
-    rightTurn = false; 
-    this->motorControl(turnSpeed, fullSpeed, true, true);
+    this->motorControl(fullSpeed, turnSpeed, true, true);
   }
   /*
   // Completely off the line
@@ -100,8 +98,6 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
   */
   // Move Forwards over black
   else {
-    leftTurn = false; 
-    rightTurn = true;
     this->motorControl(fullSpeed, fullSpeed, true, true);
   }
   return;  
@@ -127,7 +123,7 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnAdju
   
   */
 
-  this->motorControl(60, 60, false, false);
+  this->motorControl(70, 70, false, false);
   delay(turnAdjust);
   this->motorControl(0, 0, true, true);
   delay(1000);
@@ -144,7 +140,7 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnAdju
     }
     // Check to see if we are back on the line
     if (offLine && (midReading >= blackThreshold) && (leftReading >= blackThreshold) && (rightReading >= blackThreshold)) {
-      delay(100); // Final alignment
+      delay(175); // Final alignment
       this->motorControl(0, 0, true, true); // Stop motor before returning
       return true; // Turn Complete
     }
@@ -213,12 +209,16 @@ void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, 
     analogWrite(enableA, convertPWM(leftSpeed));
     analogWrite(enableB, convertPWM(rightSpeed));  
   }
+  else if ((leftSpeed == 0) && (rightSpeed == 0)) {
+    analogWrite(enableA, 0);
+    analogWrite(enableB, 0);   
+  }
   // Jumpstart to overcome static friction
   else {
     static int sTime = millis();
     static int eTime = 0;
     if (millis() - eTime > 6000) {
-      Serial.println("TEST");
+      // Serial.println("WRITING HIGH");
       sTime = millis();
       while (millis() - sTime < 500) {
         analogWrite(enableA, convertPWM(70));
@@ -226,8 +226,11 @@ void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, 
       }
       eTime = millis();
     }
-    analogWrite(enableA, convertPWM(leftSpeed));
-    analogWrite(enableB, convertPWM(rightSpeed));
+    else {
+      // Serial.println("WRITING LOW");
+      analogWrite(enableA, convertPWM(leftSpeed));
+      analogWrite(enableB, convertPWM(rightSpeed)); 
+    }
   }
 }
 
@@ -249,21 +252,28 @@ int MovementManager::pingDistance() {
 bool MovementManager::atCorner() const {
   /* Black Threshold = Number at which our sensors read "Black" instead of "White" */
   static bool lastRead = false;
+  static int falseCount = 0; 
+  // If on the line
   if (digitalRead(leftCorner) || digitalRead(rightCorner)) {
+    falseCount = 0;
     if (!lastRead) { // If just crossed onto a corner
       lastRead = true;
       return true; 
     }
     return false; // If haven't just crossed, return false to not get stuck on corners.
   }
-  lastRead = false;
+  // If not on the line
+  falseCount++;
+  if (falseCount > 10) {
+    lastRead = false; 
+  }
   return false;
   // return true; // For testing
 }
 
 int MovementManager::convertPWM(int inputPercent) {
   /* 100% --> 255 * (5/9) = 141.666 ~ 141, 0% --> 0 */
-  return floor(inputPercent/100.0 * 218);
+  return floor(inputPercent/100.0 * 235);
 }
 
 bool MovementManager::endOfLine() {

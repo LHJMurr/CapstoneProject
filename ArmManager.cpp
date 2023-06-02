@@ -37,12 +37,12 @@ void ArmManager::initialize() {
   // homePosition();
 
   Serial.println("ARM INITIALIZATION COMPLETE");
-  delay(4000);
+  delay(2000);
 }
 
 void ArmManager::raiseArm() {
   int startTime = millis();
-  while(!moveArm(70, 120, 40, 15)) {} // Pickup Orientation, 7cm US reading to stop.
+  while(!moveArm(90, 78, 40, 15)) {} // Pickup Orientation, 7cm (tune?) UltraSonic reading to stop.
   return;  
 }
 
