@@ -30,7 +30,13 @@ void corner::main(int commands[], int turnTimings[], int numCommands, int outSpe
   else {
     turnWait = 0;  
   }
-  m->turnRobot(dir, outSpeed, inSpeed, turnWait);
+
+  m->motorControl(70, 70, false, false);
+  delay(turnWait);
+  m->motorControl(0, 0, true, true);
+  delay(1000);
+  
+  m->turnRobot(dir, outSpeed, inSpeed);
   // New State
   rs->changeState(state); 
 }
@@ -41,16 +47,18 @@ void forwards::main(int fullSpeed, int turnSpeed, MovementManager* m, RobotState
 }
 
 void pickup::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* rs) {
+  
   // Raise the arm
   a->raiseArm();
-  
+  delay(1000);
+
   // Move forwards until distance is reached
   int pingCount = 0;
   while(pingCount < 5) {
     Serial.print(m->pingDistance());
     Serial.print("    ");
     Serial.println(pingCount);
-    if (m->pingDistance() < 10) {
+    if (m->pingDistance() < 12) {
       pingCount++;  
     }
     else {
@@ -62,17 +70,18 @@ void pickup::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* 
   
   // Grab the juicebox
   a->grabJuicebox();
-  
-  //Reverse to clear the wall 
-  delay(500);
-  m->motorControl(fullSpeed, fullSpeed, false, false);
   delay(1000);
+  
+  //Reverse until at corner
+  while(!m->atCorner()) {
+     m->motorControl(fullSpeed, fullSpeed, false, false); 
+  }
   m->motorControl(0, 0, true, true);
   
   // Lower the arm
   a->homePosition(true);
   a->releaseOffset(40, 15); // Offset = 15
-  
+
   // Set state to corner (turn and move forwards)
   rs->changeState(RobotState::CORNER);
 }
@@ -102,36 +111,77 @@ void dropoff::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState*
 
 void crawl::main(int fullSpeed, int turnSpeed, MovementManager* m, RobotState* rs) {
   // Wait for obstacle to be moved.
-  // TO DO
+  while(m->pingDistance() < 10) {Serial.println("OBSTACLE DETECTED");}
   
   // Full speed through the rough terrain
   m->followLineForwards(fullSpeed, turnSpeed, rs);
   return;
 }
 
-void done::main(InterfaceManager* ui, RobotState* rs) {
-  /*
-  int numPressed = 0;
-  int timePressed = millis();
-  ui->blinkDoneLight(true, 0); // Turn on DONE light
+void done::main(InterfaceManager* ui, MovementManager* m, RobotState* rs, Instructions* inst) {
+  digitalWrite(ui->stateLight, HIGH);
+  ui->blinkDoneLight(false, 0); // Turn OFF done light
   while (true) { // This is the idle state. We stay here indefinitely until a break case is met
-    if (ui->wasPressed()) {
-        numPressed = numPressed + 1;
-        timePressed = millis();        
+    // CALIBRATE
+    int blackVal = 600;
+    while (true) {
+      if (ui->wasPressed()) {
+        blackVal =  m->getMiddleSensor();
+        Serial.print("Black Value is: ");
+        Serial.println(blackVal);
+        ui->blinkDoneLight(false, 1); 
+        break;        
+      }
     }
-    if (numPressed > 0 && (millis() - timePressed > 1000)) {
-      Serial.print("CHOSEN COMMAND STRING: ");
-      Serial.println(numPressed);
-      Serial.println("BEGINNING RUN");
-      ui->blinkDoneLight(false, numPressed);
-      rs->changeState(RobotState::FORWARDS);
-      break;
+    int whiteVal = 0;
+    while (true) {
+      if (ui->wasPressed()) {
+        whiteVal =  m->getMiddleSensor();
+        Serial.print("White Value is: ");
+        Serial.println(whiteVal);
+        ui->blinkDoneLight(false, 1);       
+        break;  
+      }
     }
+    m->updateThreshold(blackVal, whiteVal);
+    
+    // GET ROLL 1
+    int roll1 = 0;
+    int timePressed;
+    while (true) {
+      if (ui->wasPressed()) {
+          roll1++;
+          timePressed = millis();        
+      }
+      if (roll1 > 0 && (millis() - timePressed > 1000)) {
+        Serial.print("ROLL 1: ");
+        Serial.println(roll1);
+        ui->blinkDoneLight(false, roll1);
+        break;
+      }
+    }
+    
+    // GET ROLL 2
+    int roll2 = 0;
+    while (true) {
+      if (ui->wasPressed()) {
+          roll2++;
+          timePressed = millis();        
+      }
+      if (roll2 > 0 && (millis() - timePressed > 1000)) {
+        Serial.print("ROLL 2: ");
+        Serial.println(roll2);
+        ui->blinkDoneLight(false, roll2);
+        break;
+      }
+    }
+    
+    // SET COMMAND STRING
+    inst->setCommands(roll1, roll2); // CHANGE corner.main to call FROM instructions!
+    rs->changeState(RobotState::FORWARDS);
+    break;
   }
-  return;
-  */
-
-  Serial.println("IDLE STATE");
-  Serial.end();
-  
+  // ui->blinkDoneLight(false, 0);
+  digitalWrite(ui->stateLight, LOW);
+  return; 
 }

@@ -8,15 +8,17 @@ class MovementManager {
   public:
     MovementManager(int lP, int mP, int rP, int lC, int rC, int eA, int eB, int i1, int i2, int i3, int i4, int e1, int p1);
     void initialize() const;
-    void followLineForwards(int fullSpeed, int turnSpeed, RobotState* rs);
-    bool turnRobot(int dir, int outSpeed, int inSpeed, int turnAdjust);
+    void followLineForwards(int fullSpeed, int turnSpeed, RobotState* rs); // *
+    bool turnRobot(int dir, int outSpeed, int inSpeed); // *
     void motorControl(int leftSpeed, int rightSpeed, bool dirLeft, bool dirRight);
     int pingDistance();
     bool atCorner() const;
     bool endOfLine();
+    int getMiddleSensor();
+    void updateThreshold(int black, int white);
   private:
     // Private Functions
-    int convertPWM(int inputPercent);
+    int convertPWM(int inputPercent); // * 
 
     // Movement Sensor Pins
     int leftPin;

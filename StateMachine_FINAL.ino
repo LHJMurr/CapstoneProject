@@ -27,6 +27,9 @@ GENERAL NOTES:
     We may want to up the arm servo voltages to 6V, but 5V seems to suffice. It just looks really sketchy.
 
     We need to tune the ultrasonic sensor readings. The dropoff isn't too bad but the pickup needs work.
+
+    There aren't a lot of safety features in the code/robot. We don't default to a done state and it's possible to get all sorts of strange inputs. I don't have time to fix them, so we have to make sure
+    we operate the robot in a standard way
   
 */
 
@@ -34,11 +37,12 @@ GENERAL NOTES:
 void StateMachine();
 
 // Global Variables
-int commandInstructions[12] = {0, 1, 0, 1, 0, 1, -1, 1, -1, 4, -1, 1};
-int turnAdjustments[3] = {710, 525, 350}; // Array for the static reverse times @ each turn. 70 speed @ 235 max PWM. 300 for 90 degrees, 710 for large-angle. 525 for the small angle. 350-ish for 90 degree afte crawl.
-MovementManager movement(A0, A1, A2, 23, 13 , 4, 9, 5, 6, 7, 8, 53, 39);
+int commandInstructions[10] = {0, 1, -1, 2, 1, 1, 0, 1, 0, 5};
+int turnAdjustments[2] = {75, 150}; // Array for the static reverse times @ each turn. 70 speed @ 235 max PWM. 250 for 90 degrees, 710 for large-angle. 525 for the small angle. 350-ish for 90 degree afte crawl.
+MovementManager movement(A0, A1, A2, 23, 13 , 4, 9, 5, 6, 7, 8, 47, 39);
 ArmManager arm(11, 2, 3, 12, A5);
-InterfaceManager ui(52, 51, 1000);
+InterfaceManager ui(52, 53, 35, 1000);
+Instructions instructions; // manages the instructions given by a button press. TO DO.
 RobotState currentState;
 
 void setup() {
@@ -53,13 +57,8 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  arm.raiseArm();
-  delay(2000);
-  arm.homePosition(true);
-  arm.releaseOffset(40, 15);
-  delay(2000); 
-
-  // StateMachine();
+  StateMachine();
+  
 }
 
 void StateMachine() {
@@ -74,21 +73,22 @@ void StateMachine() {
     // CornerState
     case RobotState::CORNER:
       {
-        corner::main(commandInstructions, turnAdjustments, 4, 100, 100, &movement, &currentState);
+        // corner::main(instructions.commandInstructions, turnAdjustments, 10, 100, 100, &movement, &currentState);
+        corner::main(commandInstructions, turnAdjustments, 10, 100, 100, &movement, &currentState);
         break;
       }
     
     // Forwards State
     case (RobotState::FORWARDS):
       {
-        forwards::main(70, 0, &movement, &currentState);
+        forwards::main(60, 100, &movement, &currentState);
         break;
       }
 
     // Pickup State
     case RobotState::PICKUP:
       {
-        pickup::main(40, &arm, &movement, &currentState);
+        pickup::main(70, &arm, &movement, &currentState);
         break;
       }
 
@@ -109,7 +109,7 @@ void StateMachine() {
     // Done State
     case RobotState::DONE:
       {
-        done::main(&ui, &currentState);
+        done::main(&ui, &movement, &currentState, &instructions);
         break;
       }
   }

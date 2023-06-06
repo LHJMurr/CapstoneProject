@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 RobotState::RobotState() {
-  currentState = 1; // Default to FORWARD (Default to 5 (done) for final product. When done, wait for input.) 
+  currentState = 1; // Default to FORWARDS
 }
 
 void RobotState::changeState(int newState) {

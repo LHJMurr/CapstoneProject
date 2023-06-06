@@ -25,7 +25,7 @@ void ArmManager::initialize() {
   jointOne.write(0);
   jointTwo.write(0);
   jointThree.write(125); // phi = -90 degrees
-  jointGrabber.write(65); // open (closed = 100)
+  jointGrabber.write(60); // open (closed = 100)
   
   // Attach pins to servos
   jointOne.attach(s1Pin);
@@ -42,7 +42,7 @@ void ArmManager::initialize() {
 
 void ArmManager::raiseArm() {
   int startTime = millis();
-  while(!moveArm(90, 78, 40, 15)) {} // Pickup Orientation, 7cm (tune?) UltraSonic reading to stop.
+  while(!moveArm(70, 100, 40, 15)) {} // Pickup Orientation, 7cm (tune?) UltraSonic reading to stop. 90/78 w/ Counterweight
   return;  
 }
 

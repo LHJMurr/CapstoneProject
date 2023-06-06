@@ -47,22 +47,10 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
   /* Behavior for the state "FORWARDS". Entails line following and correction at set speeds (no motor control yet) 
     turnThreshold is the difference in sensor readings we need to determine we are at a line. */
 
-
- /*
-  Serial.print("LEFT SENSOR READS: ");
-  Serial.print(analogRead(leftPin));
-  Serial.print("     MID SENSOR READS: ");
-  Serial.print(analogRead(middlePin));
-  Serial.print("     RIGHT SENSOR READS: ");
-  Serial.println(analogRead(rightPin));
-*/
-
   int turnThreshold = 150;
-  static bool leftTurn = false; // Store last speed command
-  static bool rightTurn = false;
 
   // Check if at corner
-  if (this->atCorner()) {
+  if (atCorner()) {
     rs->changeState(RobotState::CORNER);
     return;  
   }
@@ -70,32 +58,15 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
   // Check sensors
   int leftRead = analogRead(leftPin);
   int rightRead = analogRead(rightPin);
-  Serial.println(leftRead);
-  Serial.println(rightRead); 
 
   // Turn Right
   if (rightRead - leftRead > turnThreshold) {
-    this->motorControl(turnSpeed, fullSpeed, true, true);
+    this->motorControl(0, turnSpeed, true, true);
   }
   // Turn Left
   else if (leftRead - rightRead > turnThreshold) {
-    this->motorControl(fullSpeed, turnSpeed, true, true);
+    this->motorControl(turnSpeed, 0, true, true);
   }
-  /*
-  // Completely off the line
-  else if (leftRead < 200) { // Left is on white but right also reads white
-    Serial.print("Repeating Last Command");
-    if (!rightTurn && !leftTurn) { // Neither was turning last
-      this->motorControl(fullSpeed, fullSpeed, true, true); 
-    }
-    else if (rightTurn) {
-      this->motorControl(fullSpeed, fullSpeed, false, true);  
-    }
-    else {
-      this->motorControl(fullSpeed, fullSpeed, true, false);  
-    }
-  }
-  */
   // Move Forwards over black
   else {
     this->motorControl(fullSpeed, fullSpeed, true, true);
@@ -103,7 +74,7 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
   return;  
 }
 
-bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnAdjust) {
+bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed) {
   /* Returns true when the robot returns to the line. The while loop format makes it so all other action stops during turns, but this SHOULD be ok. Restructure into millis() if needed 
   
   outSpeed = 50, inSpeed = 55 seems to work, but we rotate around the front axis --> we may detect the same corner twice. That can be ok though, if we add a SKIP command. I'm quickly regretting
@@ -122,11 +93,6 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnAdju
   turnAdjust of 250 works for 90 degree turns (290 @ low charge). Larger for smaller angles (need to reverse more). 750 for the low angle first turn. ~550 for the next turn.
   
   */
-
-  this->motorControl(70, 70, false, false);
-  delay(turnAdjust);
-  this->motorControl(0, 0, true, true);
-  delay(1000);
   
   bool offLine = false;
   unsigned int startTime = millis();
@@ -140,7 +106,7 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnAdju
     }
     // Check to see if we are back on the line
     if (offLine && (midReading >= blackThreshold) && (leftReading >= blackThreshold) && (rightReading >= blackThreshold)) {
-      delay(175); // Final alignment
+      delay(190); // Final alignment
       this->motorControl(0, 0, true, true); // Stop motor before returning
       return true; // Turn Complete
     }
@@ -203,16 +169,12 @@ void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, 
     digitalWrite(input3, LOW);
     digitalWrite(input4, HIGH);  
   }
-  
+
   // Speed Controls
-  if (leftSpeed > 70 && rightSpeed > 70) {
-    analogWrite(enableA, convertPWM(leftSpeed));
-    analogWrite(enableB, convertPWM(rightSpeed));  
-  }
-  else if ((leftSpeed == 0) && (rightSpeed == 0)) {
-    analogWrite(enableA, 0);
-    analogWrite(enableB, 0);   
-  }
+  analogWrite(enableA, convertPWM(leftSpeed));
+  analogWrite(enableB, convertPWM(rightSpeed));  
+
+  /*
   // Jumpstart to overcome static friction
   else {
     static int sTime = millis();
@@ -232,6 +194,7 @@ void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, 
       analogWrite(enableB, convertPWM(rightSpeed)); 
     }
   }
+  */
 }
 
 int MovementManager::pingDistance() {
@@ -252,10 +215,13 @@ int MovementManager::pingDistance() {
 bool MovementManager::atCorner() const {
   /* Black Threshold = Number at which our sensors read "Black" instead of "White" */
   static bool lastRead = false;
-  static int falseCount = 0; 
   // If on the line
+  Serial.print(millis());
+  Serial.print("   "); 
+  Serial.print(digitalRead(leftCorner));
+  Serial.print("  ");
+  Serial.println(digitalRead(rightCorner));
   if (digitalRead(leftCorner) || digitalRead(rightCorner)) {
-    falseCount = 0;
     if (!lastRead) { // If just crossed onto a corner
       lastRead = true;
       return true; 
@@ -263,17 +229,14 @@ bool MovementManager::atCorner() const {
     return false; // If haven't just crossed, return false to not get stuck on corners.
   }
   // If not on the line
-  falseCount++;
-  if (falseCount > 10) {
-    lastRead = false; 
-  }
+  lastRead = false; 
   return false;
   // return true; // For testing
 }
 
 int MovementManager::convertPWM(int inputPercent) {
   /* 100% --> 255 * (5/9) = 141.666 ~ 141, 0% --> 0 */
-  return floor(inputPercent/100.0 * 235);
+  return floor(inputPercent/100.0 * 255);
 }
 
 bool MovementManager::endOfLine() {
@@ -282,4 +245,14 @@ bool MovementManager::endOfLine() {
     return true;  
   }
   return false; 
+}
+
+int MovementManager::getMiddleSensor() {
+  return analogRead(middlePin);  
+}
+
+void MovementManager::updateThreshold(int black, int white) {
+  blackThreshold = 0.5 * (black + white);
+  Serial.print("NEW THRESHOLD = ");
+  Serial.println(blackThreshold);  
 }

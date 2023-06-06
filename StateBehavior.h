@@ -4,6 +4,7 @@
 #include "RobotState.h"
 #include "MovementManager.h"
 #include "ArmManager.h"
+#include "UserInterface.h"
 
 class corner {
   public:
@@ -34,7 +35,7 @@ class crawl {
 
 class done {
   public:
-    static void main(InterfaceManager* ui, RobotState* rs);
+    static void main(InterfaceManager* ui, MovementManager* m, RobotState* rs, Instructions* inst);
 };
 
 #endif
