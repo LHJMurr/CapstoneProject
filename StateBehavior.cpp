@@ -6,12 +6,12 @@
 
 int corner::commandIdx = 0; // Static integer initialization
 
-void corner::main(int commands[], int turnTimings[], int numCommands, int outSpeed, int inSpeed, MovementManager* m, RobotState* rs) {
+void corner::main(int commands[], int turnAdjustments[], int turnTimings[], int outSpeed, int inSpeed, MovementManager* m, RobotState* rs) {
   
   m->motorControl(0, 0, true, true); // stop the motors at the corner
   delay(500); // Small delay to show corner is detected
 
-  if (corner::commandIdx >= numCommands) {
+  if (corner::commandIdx >= 60) {
     Serial.println("COMMAND INDEX OUT OF BOUNDS");
     rs->changeState(RobotState::DONE);  
   }
@@ -23,20 +23,30 @@ void corner::main(int commands[], int turnTimings[], int numCommands, int outSpe
   // Turn
   static int turnIndex = 0;
   int turnWait;
+  int turnTime;
   if (abs(dir) == 1) {
-      turnWait = turnTimings[turnIndex];
+      turnWait = turnAdjustments[turnIndex];
+      turnTime = turnTimings[turnIndex];
       turnIndex++; 
   }
   else {
     turnWait = 0;  
   }
 
-  m->motorControl(70, 70, false, false);
-  delay(turnWait);
-  m->motorControl(0, 0, true, true);
-  delay(1000);
+  if (turnWait < 0) {
+    m->motorControl(70, 70, true, true);
+    delay(abs(turnWait));
+    m->motorControl(0, 0, true, true);
+    delay(1000);
+  }
+  else {
+    m->motorControl(70, 70, false, false);
+    delay(turnWait);
+    m->motorControl(0, 0, true, true);
+    delay(1000);
+  }
   
-  m->turnRobot(dir, outSpeed, inSpeed);
+  m->turnRobot(dir, outSpeed, inSpeed, turnTime);
   // New State
   rs->changeState(state); 
 }
@@ -64,7 +74,7 @@ void pickup::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* 
     else {
       pingCount = 0;  
     }
-    m->followLineForwards(fullSpeed, 0, rs); 
+    m->followLineForwards(fullSpeed, 90, rs); 
   }
   m->motorControl(0, 0, true, true); // Stop motors
   
@@ -80,7 +90,7 @@ void pickup::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState* 
   
   // Lower the arm
   a->homePosition(true);
-  a->releaseOffset(40, 15); // Offset = 15
+  a->releaseOffset(40, 23); // Offset = 23
 
   // Set state to corner (turn and move forwards)
   rs->changeState(RobotState::CORNER);
@@ -90,9 +100,10 @@ void dropoff::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState*
   // Follow the line until the end is reached
   while(!m->endOfLine()) {
       Serial.println("MovingForwards");
-      m->followLineForwards(fullSpeed, 0, rs);
+      m->followLineForwards(fullSpeed, 90, rs);
   }
   m->motorControl(0, 0, true, true);
+  delay(1000);
 
   // Lower Arm
   a->lowerArm(); // Right now it just returns, but if we need more space to turn we can adjust it. 
@@ -100,8 +111,13 @@ void dropoff::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState*
   // Drop the juicebox
   Serial.println("Dropping off juicebox");
   a->releaseJuicebox();
-
+  delay(1000);
   
+  // Reverse until back on line
+  while(!m->atCorner()) {
+    m->motorControl(fullSpeed, fullSpeed, false, false);
+  }
+
   // Set state to corner (turn and move forwards)
   Serial.println("AT 'CORNER'");
   rs->changeState(RobotState::CORNER);
@@ -111,7 +127,10 @@ void dropoff::main(int fullSpeed, ArmManager* a, MovementManager* m, RobotState*
 
 void crawl::main(int fullSpeed, int turnSpeed, MovementManager* m, RobotState* rs) {
   // Wait for obstacle to be moved.
-  while(m->pingDistance() < 10) {Serial.println("OBSTACLE DETECTED");}
+  while(m->pingDistance() < 12) {
+    Serial.println("OBSTACLE DETECTED");
+    m->motorControl(0, 0, true, true);  
+  }
   
   // Full speed through the rough terrain
   m->followLineForwards(fullSpeed, turnSpeed, rs);
@@ -119,6 +138,15 @@ void crawl::main(int fullSpeed, int turnSpeed, MovementManager* m, RobotState* r
 }
 
 void done::main(InterfaceManager* ui, MovementManager* m, RobotState* rs, Instructions* inst) {
+  static bool startUp = true;
+  if (!startUp) {
+    unsigned int startTime= millis();
+    while (millis() - startTime < 750) {
+      m->followLineForwards(70, 85, rs);  
+    }
+    m->motorControl(0, 0, true, true); 
+  }
+  
   digitalWrite(ui->stateLight, HIGH);
   ui->blinkDoneLight(false, 0); // Turn OFF done light
   while (true) { // This is the idle state. We stay here indefinitely until a break case is met
@@ -183,5 +211,6 @@ void done::main(InterfaceManager* ui, MovementManager* m, RobotState* rs, Instru
   }
   // ui->blinkDoneLight(false, 0);
   digitalWrite(ui->stateLight, LOW);
+  startUp = false;
   return; 
 }

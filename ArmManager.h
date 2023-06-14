@@ -14,11 +14,11 @@ class ArmManager {
     void releaseJuicebox();
     bool moveArm(int targetTheta, int targetPhi, int restTime, int offset); 
     void releaseOffset(int restTime, int offset); 
-  private:
-    Servo jointOne;
+      Servo jointOne;
     Servo jointTwo;
     Servo jointThree;
     Servo jointGrabber; // 0 is open, 180 is closed. May need to scale up to 7V if too weak to grab.
+  private:
     
     // Private Functions
     static int translateAngle(int desiredAngle, bool toWrite);

@@ -42,7 +42,7 @@ void ArmManager::initialize() {
 
 void ArmManager::raiseArm() {
   int startTime = millis();
-  while(!moveArm(70, 100, 40, 15)) {} // Pickup Orientation, 7cm (tune?) UltraSonic reading to stop. 90/78 w/ Counterweight
+  while(!moveArm(70, 93, 40, 23)) {} // Pickup Orientation, 7cm (tune?) UltraSonic reading to stop. 90/78 w/ Counterweight
   return;  
 }
 
@@ -58,7 +58,7 @@ void ArmManager::homePosition(bool offset) {
   int startTime = millis();
   int o;
   if (offset) {
-    o = 15;
+    o = 23;
   }
   else {
     o = 0;  
@@ -73,7 +73,7 @@ void ArmManager::grabJuicebox() {
 }
 
 void ArmManager::releaseJuicebox() {
-  jointGrabber.write(65);
+  jointGrabber.write(60);
   return;
 }
 
@@ -104,6 +104,7 @@ bool ArmManager::moveArm(int targetTheta, int targetAlpha, int restTime, int off
   moveServo(j2_write, restTime, jointTwo);
 
   // Balance the third servo
+
   int theta = jointOneInitialAngle + (translateAngle(jointOne.read(), false) / 2);
   int alpha = jointTwoInitialAngle - (translateAngle(jointTwo.read(), false) / 2);
   int phi;

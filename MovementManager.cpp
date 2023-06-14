@@ -61,11 +61,11 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
 
   // Turn Right
   if (rightRead - leftRead > turnThreshold) {
-    this->motorControl(0, turnSpeed, true, true);
+    this->motorControl(turnSpeed, 0, true, true);
   }
   // Turn Left
   else if (leftRead - rightRead > turnThreshold) {
-    this->motorControl(turnSpeed, 0, true, true);
+    this->motorControl(0, turnSpeed, true, true);
   }
   // Move Forwards over black
   else {
@@ -74,7 +74,7 @@ void MovementManager::followLineForwards(int fullSpeed, int turnSpeed, RobotStat
   return;  
 }
 
-bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed) {
+bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed, int turnTime) {
   /* Returns true when the robot returns to the line. The while loop format makes it so all other action stops during turns, but this SHOULD be ok. Restructure into millis() if needed 
   
   outSpeed = 50, inSpeed = 55 seems to work, but we rotate around the front axis --> we may detect the same corner twice. That can be ok though, if we add a SKIP command. I'm quickly regretting
@@ -94,22 +94,8 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed) {
   
   */
   
-  bool offLine = false;
   unsigned int startTime = millis();
-  while (millis() - startTime < 10000) { // Control max turn time
-    int midReading = analogRead(middlePin);
-    int leftReading = analogRead(leftPin);
-    int rightReading = analogRead(rightPin);
-    // Check if we have left the original line
-    if (!offLine && (midReading < blackThreshold)) {
-      offLine = true;  
-    }
-    // Check to see if we are back on the line
-    if (offLine && (midReading >= blackThreshold) && (leftReading >= blackThreshold) && (rightReading >= blackThreshold)) {
-      delay(190); // Final alignment
-      this->motorControl(0, 0, true, true); // Stop motor before returning
-      return true; // Turn Complete
-    }
+  while (millis() - startTime < turnTime) { // Control max turn time
     // Turn Right
     if (dir == 1) {
       this->motorControl(outSpeed, inSpeed, true, false);
@@ -125,7 +111,7 @@ bool MovementManager::turnRobot(int dir, int outSpeed, int inSpeed) {
     }
   }
   this->motorControl(0, 0, true, true); // Stop motor before returning
-  return false;
+  return true;
 }
 
 void MovementManager::motorControl(int leftSpeed, int rightSpeed, bool dirLeft, bool dirRight) {

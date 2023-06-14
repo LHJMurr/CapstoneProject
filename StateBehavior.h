@@ -8,7 +8,7 @@
 
 class corner {
   public:
-    static void main(int commands[], int turnTimings[], int numCommands, int outSpeed, int inSpeed, MovementManager* m, RobotState* rs);
+    static void main(int commands[], int turnAdjustments[], int turnTimings[], int outSpeed, int inSpeed, MovementManager* m, RobotState* rs);
   private:
     static int commandIdx;
 };
